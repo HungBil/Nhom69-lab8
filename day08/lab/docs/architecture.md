@@ -18,7 +18,7 @@
 ```
 
 **Mô tả ngắn gọn:**
-> TODO: Mô tả hệ thống trong 2-3 câu. Nhóm xây gì? Cho ai dùng? Giải quyết vấn đề gì?
+> Nhóm xây một trợ lý nội bộ RAG cho khối CS và IT Helpdesk để trả lời câu hỏi về SLA, hoàn tiền, cấp quyền truy cập và FAQ vận hành. Hệ thống dùng retrieval có kiểm soát từ kho tài liệu policy/SOP nội bộ, sau đó sinh câu trả lời grounded kèm citation. Mục tiêu chính là giảm hallucination và tăng khả năng truy vết nguồn khi hỗ trợ vận hành.
 
 ---
 
@@ -27,24 +27,24 @@
 ### Tài liệu được index
 | File | Nguồn | Department | Số chunk |
 |------|-------|-----------|---------|
-| `policy_refund_v4.txt` | policy/refund-v4.pdf | CS | TODO |
-| `sla_p1_2026.txt` | support/sla-p1-2026.pdf | IT | TODO |
-| `access_control_sop.txt` | it/access-control-sop.md | IT Security | TODO |
-| `it_helpdesk_faq.txt` | support/helpdesk-faq.md | IT | TODO |
-| `hr_leave_policy.txt` | hr/leave-policy-2026.pdf | HR | TODO |
+| `policy_refund_v4.txt` | policy/refund-v4.pdf | CS | 6 |
+| `sla_p1_2026.txt` | support/sla-p1-2026.pdf | IT | 5 |
+| `access_control_sop.txt` | it/access-control-sop.md | IT Security | 8 |
+| `it_helpdesk_faq.txt` | support/helpdesk-faq.md | IT | 6 |
+| `hr_leave_policy.txt` | hr/leave-policy-2026.pdf | HR | 5 |
 
 ### Quyết định chunking
 | Tham số | Giá trị | Lý do |
 |---------|---------|-------|
-| Chunk size | TODO tokens | TODO |
-| Overlap | TODO tokens | TODO |
-| Chunking strategy | Heading-based / paragraph-based | TODO |
+| Chunk size | 300 tokens (xấp xỉ 1200 ký tự) | Giữ đủ ngữ cảnh điều khoản nhưng không làm context quá dài |
+| Overlap | 60 tokens (xấp xỉ 240 ký tự) | Giảm mất mát thông tin ở ranh giới chunk |
+| Chunking strategy | Heading-based + paragraph-aware split | Ưu tiên ranh giới tự nhiên theo `=== Section ===`, nếu dài thì tách theo đoạn, cuối cùng mới fallback cắt theo ký tự |
 | Metadata fields | source, section, effective_date, department, access | Phục vụ filter, freshness, citation |
 
 ### Embedding model
-- **Model**: TODO (OpenAI text-embedding-3-small / paraphrase-multilingual-MiniLM-L12-v2)
-- **Vector store**: ChromaDB (PersistentClient)
-- **Similarity metric**: Cosine
+- **Model**: `paraphrase-multilingual-MiniLM-L12-v2` (Sentence Transformers local; có thể override bằng `LOCAL_EMBEDDING_MODEL`)
+- **Vector store**: ChromaDB `PersistentClient`, collection `rag_lab`
+- **Similarity metric**: Cosine distance (pipeline convert về score bằng `1 - distance` khi retrieve)
 
 ---
 
@@ -61,15 +61,14 @@
 ### Variant (Sprint 3)
 | Tham số | Giá trị | Thay đổi so với baseline |
 |---------|---------|------------------------|
-| Strategy | TODO (hybrid / dense) | TODO |
-| Top-k search | TODO | TODO |
-| Top-k select | TODO | TODO |
-| Rerank | TODO (cross-encoder / MMR) | TODO |
-| Query transform | TODO (expansion / HyDE / decomposition) | TODO |
+| Strategy | Hybrid (Dense + BM25 với RRF) | Đổi từ dense thuần sang kết hợp semantic + keyword |
+| Top-k search | 10 | Giữ nguyên (đổi 1 biến chính là strategy + rerank) |
+| Top-k select | 3 | Giữ nguyên để công bằng A/B |
+| Rerank | Bật cross-encoder `cross-encoder/ms-marco-MiniLM-L-6-v2` | Bổ sung bước rerank sau retrieve để giảm noise |
+| Query transform | Không dùng (identity query) | Giữ query gốc, chưa bật expansion/HyDE/decomposition |
 
 **Lý do chọn variant này:**
-> TODO: Giải thích tại sao chọn biến này để tune.
-> Ví dụ: "Chọn hybrid vì corpus có cả câu tự nhiên (policy) lẫn mã lỗi và tên chuyên ngành (SLA ticket P1, ERR-403)."
+> Nhóm chọn hybrid + rerank vì corpus có cả văn bản chính sách tự nhiên và cụm keyword chuyên ngành/mã quy trình (SLA P1, Approval Matrix, Access Control SOP). Dense-only cho recall tốt nhưng một số câu có nhiễu hoặc thiếu chính xác ngữ cảnh; thêm BM25 giúp giữ exact term, còn rerank giúp ưu tiên chunk liên quan nhất trước khi vào prompt.
 
 ---
 
@@ -77,18 +76,21 @@
 
 ### Grounded Prompt Template
 ```
-Answer only from the retrieved context below.
-If the context is insufficient, say you do not know.
-Cite the source field when possible.
+Answer only from the retrieved context below. Do not use outside knowledge.
+
+Decision rules:
+1) If the context directly contains the requested information, answer directly with citation.
+2) If the exact scenario is not explicitly documented, but a general policy/process in context clearly applies, say that the document does not specify a separate case and provide the applicable standard policy/process from context.
+3) Only say "Không đủ dữ liệu trong tài liệu hiện có để trả lời câu hỏi này." when neither direct evidence nor an applicable general policy/process is available in the context.
+
+Cite the source field (in brackets like [1]) when possible.
 Keep your answer short, clear, and factual.
+Respond in the same language as the question.
 
 Question: {query}
 
 Context:
-[1] {source} | {section} | score={score}
-{chunk_text}
-
-[2] ...
+{context_block}
 
 Answer:
 ```
@@ -96,7 +98,7 @@ Answer:
 ### LLM Configuration
 | Tham số | Giá trị |
 |---------|---------|
-| Model | TODO (gpt-4o-mini / gemini-1.5-flash) |
+| Model | `gpt-4o-mini` (provider: OpenAI, có thể override bằng biến môi trường `LLM_MODEL`) |
 | Temperature | 0 (để output ổn định cho eval) |
 | Max tokens | 512 |
 
@@ -116,21 +118,50 @@ Answer:
 
 ---
 
-## 6. Diagram (tùy chọn)
+## 6. Diagram
 
-> TODO: Vẽ sơ đồ pipeline nếu có thời gian. Có thể dùng Mermaid hoặc drawio.
+Sơ đồ được tách riêng theo từng luồng để dễ trình bày khi demo.
+
+### Luồng 1 — Baseline Dense (Sprint 2)
 
 ```mermaid
 graph LR
     A[User Query] --> B[Query Embedding]
-    B --> C[ChromaDB Vector Search]
-    C --> D[Top-10 Candidates]
-    D --> E{Rerank?}
-    E -->|Yes| F[Cross-Encoder]
-    E -->|No| G[Top-3 Select]
-    F --> G
-    G --> H[Build Context Block]
-    H --> I[Grounded Prompt]
-    I --> J[LLM]
-    J --> K[Answer + Citation]
+    B --> C[Chroma Vector Search Top-10]
+    C --> D[Select Top-3]
+    D --> E[Build Context Block]
+    E --> F[Grounded Prompt]
+    F --> G[LLM gpt-4o-mini]
+    G --> H[Answer + Citation]
+```
+
+### Luồng 2 — Hybrid (Dense + BM25, không rerank)
+
+```mermaid
+graph LR
+    A[User Query] --> B1[Dense Retrieval Top-10]
+    A --> B2[Sparse BM25 Top-10]
+    B1 --> C[RRF Fusion]
+    B2 --> C
+    C --> D[Select Top-3]
+    D --> E[Build Context Block]
+    E --> F[Grounded Prompt]
+    F --> G[LLM gpt-4o-mini]
+    G --> H[Answer + Citation]
+```
+
+### Luồng 3 — Hybrid + Rerank (Variant đang chạy)
+
+```mermaid
+graph LR
+    A[User Query] --> B1[Dense Retrieval Top-10]
+    A --> B2[Sparse BM25 Top-10]
+    B1 --> C[RRF Fusion]
+    B2 --> C
+    C --> D[Cross-Encoder Rerank]
+    D --> E[Select Top-3]
+    E --> F[Build Context Block]
+    F --> G[Grounded Prompt]
+    G --> H[LLM gpt-4o-mini]
+    H --> I[Answer + Citation]
 ```

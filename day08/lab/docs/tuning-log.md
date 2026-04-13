@@ -7,100 +7,129 @@
 
 ## Baseline (Sprint 2)
 
-**Ngày:** ___________  
+**Ngày:** 2026-04-13 (run `results_v1`)  
 **Config:**
 ```
 retrieval_mode = "dense"
-chunk_size = _____ tokens
-overlap = _____ tokens
+chunk_size = 300 tokens
+overlap = 60 tokens
 top_k_search = 10
 top_k_select = 3
 use_rerank = False
-llm_model = _____
+llm_model = "gpt-4o-mini"
 ```
 
 **Scorecard Baseline:**
 | Metric | Average Score |
 |--------|--------------|
-| Faithfulness | ? /5 |
-| Answer Relevance | ? /5 |
-| Context Recall | ? /5 |
-| Completeness | ? /5 |
+| Faithfulness | 4.60 /5 |
+| Answer Relevance | 4.20 /5 |
+| Context Recall | 5.00 /5 |
+| Completeness | 3.90 /5 |
 
 **Câu hỏi yếu nhất (điểm thấp):**
-> TODO: Liệt kê 2-3 câu hỏi có điểm thấp nhất và lý do tại sao.
-> Ví dụ: "q07 (Approval Matrix) - context recall = 1/5 vì dense bỏ lỡ alias."
+> q10 (Refund VIP) - Faithfulness 1, Relevance 1, Completeness 1: mô hình abstain quá mạnh dù context có policy chung để trả lời.
+> q07 (Approval Matrix) - Completeness 2: chỉ nêu tên cũ `Approval Matrix for System Access`, thiếu mapping sang tên mới `Access Control SOP`.
+> q09 (ERR-403-AUTH) - Relevance 1, Completeness 3: trả lời kiểu "không đủ dữ liệu" đúng hướng abstain nhưng thiếu gợi ý xử lý thực tế (liên hệ IT Helpdesk/nhóm xác thực).
 
 **Giả thuyết nguyên nhân (Error Tree):**
 - [ ] Indexing: Chunking cắt giữa điều khoản
 - [ ] Indexing: Metadata thiếu effective_date
-- [ ] Retrieval: Dense bỏ lỡ exact keyword / alias
+- [x] Retrieval: Dense bỏ lỡ exact keyword / alias
 - [ ] Retrieval: Top-k quá ít → thiếu evidence
-- [ ] Generation: Prompt không đủ grounding
+- [x] Generation: Prompt chưa đủ rule để xử lý "không có case riêng nhưng có policy chung"
 - [ ] Generation: Context quá dài → lost in the middle
 
 ---
 
 ## Variant 1 (Sprint 3)
 
-**Ngày:** ___________  
-**Biến thay đổi:** ___________  
+**Ngày:** 2026-04-13 (run `results_v1`)  
+**Biến thay đổi:** Dense -> Hybrid + Rerank (chưa tuned)  
 **Lý do chọn biến này:**
-> TODO: Giải thích theo evidence từ baseline results.
-> Ví dụ: "Chọn hybrid vì q07 (alias query) và q09 (mã lỗi ERR-403) đều thất bại với dense.
-> Corpus có cả ngôn ngữ tự nhiên (policy) lẫn tên riêng/mã lỗi (ticket code, SLA label)."
+> Baseline có dấu hiệu bỏ sót ngữ cảnh alias/tên gọi cũ-mới (q07) và trả lời thiếu chắc chắn ở các câu hỏi giàu keyword đặc thù. Vì vậy nhóm thử Hybrid (Dense + BM25) để tăng khả năng bắt exact term, đồng thời thêm rerank để giảm nhiễu trước khi build context.
 
 **Config thay đổi:**
 ```
-retrieval_mode = "hybrid"   # hoặc biến khác
-# Các tham số còn lại giữ nguyên như baseline
+retrieval_mode = "hybrid"
+top_k_search = 10
+top_k_select = 3
+use_rerank = True
+rrf_dense_weight = 0.6
+rrf_sparse_weight = 0.4
+rerank_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+# Các tham số còn lại giữ nguyên baseline
 ```
 
 **Scorecard Variant 1:**
 | Metric | Baseline | Variant 1 | Delta |
 |--------|----------|-----------|-------|
-| Faithfulness | ?/5 | ?/5 | +/- |
-| Answer Relevance | ?/5 | ?/5 | +/- |
-| Context Recall | ?/5 | ?/5 | +/- |
-| Completeness | ?/5 | ?/5 | +/- |
+| Faithfulness | 4.60/5 | 4.50/5 | -0.10 |
+| Answer Relevance | 4.20/5 | 4.20/5 | +0.00 |
+| Context Recall | 5.00/5 | 5.00/5 | +0.00 |
+| Completeness | 3.90/5 | 3.90/5 | +0.00 |
 
 **Nhận xét:**
-> TODO: Variant 1 cải thiện ở câu nào? Tại sao?
-> Có câu nào kém hơn không? Tại sao?
+> Cải thiện nhẹ ở q07 (Completeness 2 -> 3) vì hybrid bắt tốt hơn cụm từ liên quan Approval Matrix.
+> Giảm chất lượng ở q04 (Faithfulness 5 -> 4) và q06 (Completeness 5 -> 4) do rerank đôi lúc đẩy các chunk có wording gần query nhưng không phải chunk tốt nhất để trả lời theo expected answer.
+> q10 vẫn là điểm nghẽn lớn (Faithfulness 1, Relevance 1, Completeness 1), cho thấy bài toán không chỉ nằm ở retrieval mà còn ở logic generation/grounding.
 
 **Kết luận:**
-> TODO: Variant 1 có tốt hơn baseline không?
-> Bằng chứng là gì? (điểm số, câu hỏi cụ thể)
+> Variant 1 chưa tốt hơn baseline ở mức tổng thể. Dù recall giữ nguyên 5.00/5, Faithfulness giảm nhẹ và Completeness không tăng. Nhóm cần tune sâu hơn ở bước rerank và prompt để tránh kéo lệch context khi hybrid trả về nhiều candidate gần nghĩa.
 
 ---
 
 ## Variant 2 (nếu có thời gian)
 
-**Biến thay đổi:** ___________  
+**Ngày:** 2026-04-13 (run `results_v2`)  
+**Biến thay đổi:** Tuning rerank + source focus + grounded prompt  
 **Config:**
 ```
-# TODO
+retrieval_mode = "hybrid"
+top_k_search = 10
+top_k_select = 3
+use_rerank = True
+
+# Tuning 1: blended rerank score
+final_rank_score = alpha * cross_encoder_score + (1 - alpha) * retrieval_score
+
+# Tuning 2: ưu tiên dominant source sau rerank
+dominant_source_bias = True
+
+# Tuning 3: prompt rules cụ thể hơn
+prompt_rules = [
+   "Answer only from retrieved context",
+   "Nếu không có case riêng nhưng có policy chung áp dụng được thì phải trả lời policy chung",
+   "Chỉ abstain khi không có cả bằng chứng trực tiếp lẫn policy áp dụng",
+   "Bắt buộc citation theo chunk"
+]
 ```
 
 **Scorecard Variant 2:**
 | Metric | Baseline | Variant 1 | Variant 2 | Best |
 |--------|----------|-----------|-----------|------|
-| Faithfulness | ? | ? | ? | ? |
-| Answer Relevance | ? | ? | ? | ? |
-| Context Recall | ? | ? | ? | ? |
-| Completeness | ? | ? | ? | ? |
+| Faithfulness | 4.60 | 4.50 | 4.80 | Variant 2 |
+| Answer Relevance | 4.20 | 4.20 | 4.40 | Variant 2 |
+| Context Recall | 5.00 | 5.00 | 5.00 | Tie |
+| Completeness | 3.90 | 3.90 | 4.10 | Variant 2 |
+
+**Nhận xét Variant 2:**
+> Cải thiện rõ nhất ở q10 (Faithfulness 1 -> 4, Relevance 1 -> 3, Completeness 1 -> 4), đúng mục tiêu giảm lỗi "rerank kéo lệch + abstain quá mức".
+> q04 cũng cải thiện Completeness (3 -> 5) nhờ source focus và prompt rule rõ hơn.
+> Tuy nhiên vẫn còn câu giảm (q06 Completeness 4 -> 2, q07 Completeness 3 -> 2), cho thấy dominant source bias có thể làm mất bối cảnh phụ hoặc thông tin rename cũ-mới.
+
+**Kết luận Variant 2:**
+> Variant 2 là cấu hình tốt nhất trong 3 mốc thử nghiệm (Baseline -> Variant 1 -> Variant 2) theo xu hướng tổng thể và đặc biệt hiệu quả với các câu dễ fail do context drift. Dù chưa xử lý triệt để q07 và q06, đây là phương án nên chọn để nộp vì cân bằng tốt hơn giữa faithfulness, relevance và completeness.
 
 ---
 
 ## Tóm tắt học được
 
-> TODO (Sprint 4): Điền sau khi hoàn thành evaluation.
-
 1. **Lỗi phổ biến nhất trong pipeline này là gì?**
-   > _____________
+   > Không phải thiếu recall (vẫn 5.00), mà là lỗi chọn và dùng context: rerank có thể kéo lệch nguồn và generation có thể abstain sai khi policy chung vẫn đủ trả lời.
 
 2. **Biến nào có tác động lớn nhất tới chất lượng?**
-   > _____________
+   > Cụm thay đổi ở bước hậu retrieval (blended rerank score + ưu tiên dominant source) kết hợp prompt rule rõ ràng có tác động lớn nhất, đặc biệt giảm lỗi nghiêm trọng ở q10.
 
 3. **Nếu có thêm 1 giờ, nhóm sẽ thử gì tiếp theo?**
-   > _____________
+   > Thêm rule alias/rename dictionary (`Approval Matrix for System Access` -> `Access Control SOP`) và áp dụng rerank diversification để giữ 1-2 chunk bổ trợ thay vì dồn toàn bộ top-k vào một nguồn dominant.
