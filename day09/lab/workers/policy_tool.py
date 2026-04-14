@@ -16,8 +16,24 @@ Gọi độc lập để test:
     python workers/policy_tool.py
 """
 import os
+import re
+from datetime import datetime
 
 WORKER_NAME = "policy_tool_worker"
+
+
+def _safe_append_mcp_result(state: dict, result: dict) -> None:
+    if isinstance(result, dict):
+        state.setdefault("mcp_tools_used", []).append(result)
+    else:
+        state.setdefault("mcp_tools_used", []).append(
+            {
+                "tool": "unknown",
+                "input": {},
+                "output": None,
+                "error": {"code": "MCP_RESULT_INVALID", "reason": "tool call returned non-dict result"},
+            }
+        )
 
 
 # ─────────────────────────────────────────────
@@ -55,16 +71,16 @@ def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
             }
 
         # Local MCP mock path (in-process)
-        # from mcp_server import dispatch_tool
-        # result = dispatch_tool(tool_name, tool_input)
-        # return {
-        #     "tool": tool_name,
-        #     "input": tool_input,
-        #     "output": result,
-        #     "error": None,
-        #     "transport": "local",
-        #     "timestamp": datetime.now().isoformat(),
-        # }
+        from mcp_server import dispatch_tool
+        result = dispatch_tool(tool_name, tool_input)
+        return {
+            "tool": tool_name,
+            "input": tool_input,
+            "output": result,
+            "error": None,
+            "transport": "local",
+            "timestamp": datetime.now().isoformat(),
+        }
     except Exception as e:
         return {
             "tool": tool_name,
@@ -114,7 +130,12 @@ def analyze_policy(task: str, chunks: list) -> dict:
         })
 
     # Exception 2: Digital product
-    if any(kw in task_lower for kw in ["license key", "license", "subscription", "kỹ thuật số"]):
+    digital_positive = any(kw in task_lower for kw in ["license key", "license", "subscription", "kỹ thuật số"])
+    digital_negated = any(
+        kw in task_lower
+        for kw in ["không phải kỹ thuật số", "khong phai ky thuat so", "not digital", "not a digital product"]
+    )
+    if digital_positive and not digital_negated:
         exceptions_found.append({
             "type": "digital_product_exception",
             "rule": "Sản phẩm kỹ thuật số (license key, subscription) không được hoàn tiền (Điều 3).",
@@ -122,7 +143,12 @@ def analyze_policy(task: str, chunks: list) -> dict:
         })
 
     # Exception 3: Activated product
-    if any(kw in task_lower for kw in ["đã kích hoạt", "đã đăng ký", "đã sử dụng"]):
+    activated_positive = any(kw in task_lower for kw in ["đã kích hoạt", "đã đăng ký", "đã sử dụng"])
+    activated_negated = any(
+        kw in task_lower
+        for kw in ["chưa kích hoạt", "chưa đăng ký", "chưa sử dụng", "not activated", "unused"]
+    )
+    if activated_positive and not activated_negated:
         exceptions_found.append({
             "type": "activated_exception",
             "rule": "Sản phẩm đã kích hoạt hoặc đăng ký tài khoản không được hoàn tiền (Điều 3).",
@@ -136,8 +162,27 @@ def analyze_policy(task: str, chunks: list) -> dict:
     # TODO: Check nếu đơn hàng trước 01/02/2026 → v3 applies (không có docs, nên flag cho synthesis)
     policy_name = "refund_policy_v4"
     policy_version_note = ""
-    if "31/01" in task_lower or "30/01" in task_lower or "trước 01/02" in task_lower:
-        policy_version_note = "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3 (không có trong tài liệu hiện tại)."
+    order_date = None
+    for m in re.findall(r"\b(\d{1,2}/\d{1,2}/\d{4})\b", task):
+        try:
+            dt = datetime.strptime(m, "%d/%m/%Y")
+            if order_date is None or dt < order_date:
+                order_date = dt
+        except ValueError:
+            continue
+
+    if order_date and order_date < datetime(2026, 2, 1):
+        policy_name = "refund_policy_v3_unknown"
+        policy_version_note = (
+            "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3, "
+            "nhưng tài liệu hiện có chỉ gồm policy_refund_v4.txt nên không thể kết luận chắc chắn theo v3."
+        )
+    elif "trước 01/02/2026" in task_lower:
+        policy_name = "refund_policy_v3_unknown"
+        policy_version_note = (
+            "Đơn hàng đặt trước 01/02/2026 áp dụng chính sách v3, "
+            "nhưng tài liệu hiện có chỉ gồm policy_refund_v4.txt nên không thể kết luận chắc chắn theo v3."
+        )
 
     # TODO Sprint 2: Gọi LLM để phân tích phức tạp hơn
     # Ví dụ:
@@ -203,7 +248,7 @@ def run(state: dict) -> dict:
         # Step 1: Nếu chưa có chunks, gọi MCP search_kb
         if not chunks and needs_tool:
             mcp_result = _call_mcp_tool("search_kb", {"query": task, "top_k": 3})
-            state["mcp_tools_used"].append(mcp_result)
+            _safe_append_mcp_result(state, mcp_result)
             state["history"].append(f"[{WORKER_NAME}] called MCP search_kb")
 
             if mcp_result.get("output") and mcp_result["output"].get("chunks"):
@@ -224,7 +269,7 @@ def run(state: dict) -> dict:
                     "is_emergency": is_emergency,
                 },
             )
-            state["mcp_tools_used"].append(perm_result)
+            _safe_append_mcp_result(state, perm_result)
             state["history"].append(
                 f"[{WORKER_NAME}] called MCP check_access_permission(level={level}, emergency={is_emergency})"
             )
@@ -232,7 +277,10 @@ def run(state: dict) -> dict:
         # Step 3: Phân tích policy
         policy_result = analyze_policy(task, chunks)
         # Đính kèm MCP result liên quan access nếu có để synthesis tận dụng
-        access_checks = [c for c in state["mcp_tools_used"] if c.get("tool") == "check_access_permission"]
+        access_checks = [
+            c for c in state["mcp_tools_used"]
+            if isinstance(c, dict) and c.get("tool") == "check_access_permission"
+        ]
         if access_checks and access_checks[-1].get("output"):
             policy_result["access_check"] = access_checks[-1]["output"]
         state["policy_result"] = policy_result
@@ -240,7 +288,7 @@ def run(state: dict) -> dict:
         # Step 4: Nếu cần thêm info từ MCP (e.g., ticket status), gọi get_ticket_info
         if needs_tool and any(kw in task.lower() for kw in ["ticket", "p1", "jira"]):
             mcp_result = _call_mcp_tool("get_ticket_info", {"ticket_id": "P1-LATEST"})
-            state["mcp_tools_used"].append(mcp_result)
+            _safe_append_mcp_result(state, mcp_result)
             state["history"].append(f"[{WORKER_NAME}] called MCP get_ticket_info")
 
         worker_io["output"] = {

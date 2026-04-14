@@ -132,7 +132,10 @@ def run_grading_questions(questions_file: str = "data/grading_questions.json") -
                     "supervisor_route": result.get("supervisor_route", ""),
                     "route_reason": result.get("route_reason", ""),
                     "workers_called": result.get("workers_called", []),
-                    "mcp_tools_used": mcp_tool_names,
+                    "mcp_tools_used": [
+                        t.get("tool") for t in result.get("mcp_tools_used", [])
+                        if isinstance(t, dict)
+                    ],
                     "confidence": result.get("confidence", 0.0),
                     "hitl_triggered": result.get("hitl_triggered", False),
                     "latency_ms": result.get("latency_ms"),
