@@ -1,6 +1,5 @@
 """
-mcp_server.py — Mock MCP Server & FastAPI HTTP Server
-# MCP Owner: Nguyen Dong Hung (2A202600392)
+mcp_server.py — Mock MCP Server
 Sprint 3: Implement ít nhất 2 MCP tools.
 
 Mô phỏng MCP (Model Context Protocol) interface trong Python.
@@ -31,6 +30,7 @@ Chạy thử:
 
 import os
 import json
+import argparse
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -329,51 +329,88 @@ def dispatch_tool(tool_name: str, tool_input: dict) -> dict:
 
 
 # ─────────────────────────────────────────────
-# FastAPI HTTP Server (Sprint 3 Bonus)
+# Real MCP Server (HTTP)
 # ─────────────────────────────────────────────
-try:
-    from fastapi import FastAPI, HTTPException
-    from pydantic import BaseModel
-    import uvicorn
 
-    app = FastAPI(title="Day 09 Mock MCP Server", description="MCP Server run via HTTP for Multi-Agent")
+def create_app():
+    try:
+        from fastapi import FastAPI
+        from fastapi.responses import JSONResponse
+    except Exception as e:
+        raise RuntimeError(
+            "FastAPI chưa sẵn sàng. Cài requirements trước: pip install -r requirements.txt"
+        ) from e
 
-    class ToolCallRequest(BaseModel):
-        tool_name: str
-        tool_input: dict
+    app = FastAPI(title="Day09 MCP Server", version="1.0.0")
+
+    @app.get("/health")
+    def health():
+        return {"ok": True, "service": "day09-mcp-server", "timestamp": datetime.now().isoformat()}
+
+    @app.get("/mcp/tools/list")
+    def mcp_tools_list():
+        return {"tools": list_tools()}
+
+    @app.post("/mcp/tools/call")
+    def mcp_tools_call(payload: dict):
+        tool = payload.get("tool")
+        tool_input = payload.get("input", {})
+        if not tool:
+            return JSONResponse(status_code=400, content={"error": "Missing required field: tool"})
+        output = dispatch_tool(tool, tool_input)
+        return {"tool": tool, "input": tool_input, "output": output}
 
     @app.get("/tools/list")
-    def api_list_tools():
+    def tools_list_alias():
         return {"tools": list_tools()}
 
     @app.post("/tools/call")
-    def api_dispatch_tool(request: ToolCallRequest):
-        result = dispatch_tool(request.tool_name, request.tool_input)
-        return result
+    def tools_call_alias(payload: dict):
+        return mcp_tools_call(payload)
 
-except ImportError:
-    app = None
+    return app
+
+
+def serve(host: str = "127.0.0.1", port: int = 8001):
+    try:
+        import uvicorn
+    except Exception as e:
+        raise RuntimeError(
+            "Uvicorn chưa sẵn sàng. Cài requirements trước: pip install -r requirements.txt"
+        ) from e
+
+    app = create_app()
+    print("=" * 60)
+    print("MCP Server (HTTP) running")
+    print(f"  URL: http://{host}:{port}")
+    print("  Endpoints:")
+    print("    GET  /health")
+    print("    GET  /mcp/tools/list")
+    print("    POST /mcp/tools/call")
+    print("=" * 60)
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
 
 # ─────────────────────────────────────────────
 # Test & Demo
 # ─────────────────────────────────────────────
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "--http":
-        if app is None:
-            print("Please install fastapi and uvicorn: pip install fastapi uvicorn")
-            sys.exit(1)
-        import uvicorn
-        print("Starting FastAPI HTTP Server on port 8080...")
-        uvicorn.run(app, host="127.0.0.1", port=8080)
-    else:
-        print("=" * 60)
-        print("MCP Server — Tool Discovery & Test")
-        print("Run with '--http' flag to start the FastAPI server.")
-        print("=" * 60)
+    parser = argparse.ArgumentParser(description="Day09 MCP server")
+    parser.add_argument("--serve", action="store_true", help="Run real MCP server over HTTP")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8001)
+    args = parser.parse_args()
 
-        # 1. Discover tools
+    if args.serve:
+        serve(host=args.host, port=args.port)
+        raise SystemExit(0)
+
+    print("=" * 60)
+    print("MCP Server — Tool Discovery & Test")
+    print("=" * 60)
+
+    # 1. Discover tools
     print("\n📋 Available Tools:")
     for tool in list_tools():
         print(f"  • {tool['name']}: {tool['description'][:60]}...")
@@ -411,5 +448,5 @@ if __name__ == "__main__":
     err = dispatch_tool("nonexistent_tool", {})
     print(f"  Error: {err.get('error')}")
 
+    print("\nUse '--serve' to run real HTTP MCP server.")
     print("\n✅ MCP server test done.")
-    print("\nTODO Sprint 3: Implement HTTP server nếu muốn bonus +2.")

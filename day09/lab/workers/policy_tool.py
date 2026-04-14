@@ -31,7 +31,7 @@ WORKER_NAME = "policy_tool_worker"
 def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
     """
     Gọi MCP tool (Dual mode).
-    - Ưu tiên: Gọi qua FastAPI HTTP API (cổng 8080).
+    - Ưu tiên: Gọi qua FastAPI HTTP API (cổng 8001).
     - Fallback: Import trực tiếp in-process mock (nếu HTTP server chưa chạy).
     """
     from datetime import datetime
@@ -40,8 +40,8 @@ def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
     try:
         # Cách 1: Ưu tiên HTTP
         import httpx
-        url = "http://127.0.0.1:8080/tools/call"
-        payload = {"tool_name": tool_name, "tool_input": tool_input}
+        url = "http://127.0.0.1:8001/mcp/tools/call"
+        payload = {"tool": tool_name, "input": tool_input}
         # Dùng raw requests để tránh crash khi chưa có server
         response = httpx.post(url, json=payload, timeout=2.0)
         result = response.json()
