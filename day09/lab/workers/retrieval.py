@@ -153,17 +153,47 @@ def _keyword_score(query: str, text: str) -> float:
     return hit / len(set(q_tokens))
 
 
+def _intent_source_boosts(query: str) -> dict:
+    q = query.lower()
+    boosts = {
+        "sla_p1_2026.txt": 0.0,
+        "policy_refund_v4.txt": 0.0,
+        "access_control_sop.txt": 0.0,
+        "hr_leave_policy.txt": 0.0,
+        "it_helpdesk_faq.txt": 0.0,
+    }
+
+    if any(k in q for k in ["p1", "sla", "escalation", "incident", "on-call", "pagerduty"]):
+        boosts["sla_p1_2026.txt"] += 0.45
+    if any(k in q for k in ["hoàn tiền", "refund", "flash sale", "store credit", "kỹ thuật số", "license"]):
+        boosts["policy_refund_v4.txt"] += 0.55
+    if any(k in q for k in ["access", "cấp quyền", "level 2", "level 3", "phê duyệt", "approval"]):
+        boosts["access_control_sop.txt"] += 0.50
+    if any(k in q for k in ["probation", "remote", "làm remote", "hr", "nghỉ phép"]):
+        boosts["hr_leave_policy.txt"] += 0.55
+    if any(k in q for k in ["mật khẩu", "password", "helpdesk", "faq", "đăng nhập"]):
+        boosts["it_helpdesk_faq.txt"] += 0.55
+
+    if boosts["sla_p1_2026.txt"] > 0 and boosts["access_control_sop.txt"] > 0:
+        boosts["sla_p1_2026.txt"] += 0.20
+        boosts["access_control_sop.txt"] += 0.20
+
+    return boosts
+
+
 def retrieve_lexical(query: str, top_k: int = DEFAULT_TOP_K) -> list:
     """Fallback keyword retrieval trên local docs khi Chroma/embedding không sẵn sàng."""
     if not DOCS_DIR.exists():
         return []
 
     scored = []
+    boosts = _intent_source_boosts(query)
     for fpath in sorted(DOCS_DIR.glob("*.txt")):
         try:
             content = fpath.read_text(encoding="utf-8")
         except Exception:
             continue
+        source_boost = boosts.get(fpath.name, 0.0)
         for piece in _simple_chunk_text(content):
             score = _keyword_score(query, piece)
             if score <= 0:
@@ -172,13 +202,26 @@ def retrieve_lexical(query: str, top_k: int = DEFAULT_TOP_K) -> list:
                 {
                     "text": piece,
                     "source": fpath.name,
-                    "score": round(min(0.99, score), 4),
+                    "score": round(min(0.99, score + source_boost), 4),
                     "metadata": {"source": fpath.name, "method": "lexical_fallback"},
                 }
             )
 
     scored.sort(key=lambda x: x["score"], reverse=True)
-    return scored[:top_k]
+
+    selected = []
+    per_source_count = {}
+    max_per_source = 2 if top_k >= 4 else 1
+    for item in scored:
+        src = item["source"]
+        if per_source_count.get(src, 0) >= max_per_source:
+            continue
+        selected.append(item)
+        per_source_count[src] = per_source_count.get(src, 0) + 1
+        if len(selected) >= top_k:
+            break
+
+    return selected
 
 
 def run(state: dict) -> dict:
@@ -193,6 +236,11 @@ def run(state: dict) -> dict:
     """
     task = state.get("task", "")
     top_k = state.get("retrieval_top_k", DEFAULT_TOP_K)
+    task_lower = task.lower()
+    if any(k in task_lower for k in ["p1", "sla"]) and any(
+        k in task_lower for k in ["access", "cấp quyền", "level 2", "level 3"]
+    ):
+        top_k = max(top_k, 5)
 
     state.setdefault("workers_called", [])
     state.setdefault("history", [])
