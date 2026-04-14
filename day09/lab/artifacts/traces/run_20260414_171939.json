@@ -1,0 +1,165 @@
+{
+  "task": "Contractor cần Admin Access (Level 3) để khắc phục sự cố P1 đang active. Quy trình cấp quyền tạm thời như thế nào?",
+  "route_reason": "policy/access signal detected: cấp quyền, access, level 3 → route policy_tool_worker (prefer MCP) | choose MCP=yes",
+  "risk_high": false,
+  "needs_tool": true,
+  "hitl_triggered": false,
+  "retrieved_chunks": [
+    {
+      "text": ". Áp dụng cho tất cả nhân viên, contractor, và third-party vendor. === Section 2: Phân cấp quyền truy cập === Level 1 — Read Only: Áp dụng cho: Tất cả nhân viên mới trong 30 ngày đầu. Phê duyệt: Line Manager. Thời gian xử lý: 1 ngày làm việc. Level 2 — Standard Access: Áp dụng cho: Nhân viên chính thức đã qua thử việc. Phê duyệt: Line Manager + IT Admin. Thời gian xử lý: 2 ngày làm việc. Level 3 — Elevated Access: Áp",
+      "source": "access_control_sop.txt",
+      "score": 0.99,
+      "metadata": {
+        "source": "access_control_sop.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": "i gian xử lý: 2 ngày làm việc. Level 3 — Elevated Access: Áp dụng cho: Team Lead, Senior Engineer, Manager. Phê duyệt: Line Manager + IT Admin + IT Security. Thời gian xử lý: 3 ngày làm việc. Level 4 — Admin Access: Áp dụng cho: DevOps, SRE, IT Admin. Phê duyệt: IT Manager + CISO. Thời gian xử lý: 5 ngày làm việc. Yêu cầu thêm: Training bắt buộc về security policy. === Section 3: Quy trình yêu cầu cấp quyền === Bước ",
+      "source": "access_control_sop.txt",
+      "score": 0.99,
+      "metadata": {
+        "source": "access_control_sop.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": "và khắc phục: 1 ngày làm việc. - Escalation: Tự động escalate sau 90 phút không có phản hồi. Ticket P3: - Phản hồi ban đầu: 1 ngày làm việc. - Xử lý và khắc phục: 5 ngày làm việc. Ticket P4: - Phản hồi ban đầu: 3 ngày làm việc. - Xử lý và khắc phục: Theo sprint cycle (thông thường 2-4 tuần). === Phần 3: Quy trình xử lý sự cố P1 === Bước 1: Tiếp nhận On-call engineer nhận alert hoặc ticket, xác nhận severity trong 5 p",
+      "source": "sla_p1_2026.txt",
+      "score": 0.9682,
+      "metadata": {
+        "source": "sla_p1_2026.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": "SLA TICKET - QUY ĐỊNH XỬ LÝ SỰ CỐ Source: support/sla-p1-2026.pdf Department: IT Effective Date: 2026-01-15 Access: internal === Phần 1: Định nghĩa mức độ ưu tiên === P1 — CRITICAL (Khẩn cấp): Định nghĩa: Sự cố ảnh hưởng toàn bộ hệ thống production, không có workaround. Ví dụ: Database sập, API gateway down, toàn bộ người dùng không thể đăng nhập. P2 — HIGH (Nghiêm trọng): Định nghĩa: Sự cố ảnh hưởng một phần hệ thốn",
+      "source": "sla_p1_2026.txt",
+      "score": 0.9227,
+      "metadata": {
+        "source": "sla_p1_2026.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": "ược cấp sau bao lâu khi vào công ty? A: Laptop được cấp trong ngày onboarding đầu tiên. Nếu có vấn đề, liên hệ HR hoặc IT Admin. Q: Laptop bị hỏng phải báo cáo như thế nào? A: Tạo ticket P2 hoặc P3 tùy mức độ nghiêm trọng. Mang thiết bị đến IT Room (tầng 3) để kiểm tra. === Section 5: Email và lịch === Q: Hộp thư đến đầy, phải làm gì? A: Xóa email cũ hoặc yêu cầu tăng dung lượng qua ticket IT-ACCESS. Dung lượng tiêu ",
+      "source": "it_helpdesk_faq.txt",
+      "score": 0.3182,
+      "metadata": {
+        "source": "it_helpdesk_faq.txt",
+        "method": "lexical_fallback"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "access_control_sop.txt",
+    "it_helpdesk_faq.txt",
+    "sla_p1_2026.txt"
+  ],
+  "policy_result": {
+    "policy_applies": true,
+    "policy_name": "refund_policy_v4",
+    "exceptions_found": [],
+    "source": [
+      "access_control_sop.txt",
+      "it_helpdesk_faq.txt",
+      "sla_p1_2026.txt"
+    ],
+    "policy_version_note": "",
+    "explanation": "Analyzed via rule-based policy check. TODO: upgrade to LLM-based analysis.",
+    "access_check": {
+      "access_level": 3,
+      "can_grant": true,
+      "required_approvers": [
+        "Line Manager",
+        "IT Admin",
+        "IT Security"
+      ],
+      "approver_count": 3,
+      "emergency_override": false,
+      "notes": [
+        "Level 3 KHÔNG có emergency bypass. Phải follow quy trình chuẩn."
+      ],
+      "source": "access_control_sop.txt"
+    }
+  },
+  "mcp_tools_used": [
+    {
+      "tool": "check_access_permission",
+      "input": {
+        "access_level": 3,
+        "requester_role": "contractor",
+        "is_emergency": true
+      },
+      "output": {
+        "access_level": 3,
+        "can_grant": true,
+        "required_approvers": [
+          "Line Manager",
+          "IT Admin",
+          "IT Security"
+        ],
+        "approver_count": 3,
+        "emergency_override": false,
+        "notes": [
+          "Level 3 KHÔNG có emergency bypass. Phải follow quy trình chuẩn."
+        ],
+        "source": "access_control_sop.txt"
+      },
+      "error": null,
+      "transport": "local",
+      "timestamp": "2026-04-14T17:19:45.045289"
+    },
+    {
+      "tool": "get_ticket_info",
+      "input": {
+        "ticket_id": "P1-LATEST"
+      },
+      "output": {
+        "ticket_id": "IT-9847",
+        "priority": "P1",
+        "title": "API Gateway down — toàn bộ người dùng không đăng nhập được",
+        "status": "in_progress",
+        "assignee": "nguyen.van.a@company.internal",
+        "created_at": "2026-04-13T22:47:00",
+        "sla_deadline": "2026-04-14T02:47:00",
+        "escalated": true,
+        "escalated_to": "senior_engineer_team",
+        "notifications_sent": [
+          "slack:#incident-p1",
+          "email:incident@company.internal",
+          "pagerduty:oncall"
+        ]
+      },
+      "error": null,
+      "transport": "local",
+      "timestamp": "2026-04-14T17:19:45.045341"
+    }
+  ],
+  "final_answer": "(1) SLA P1 notification phải làm ngay: gửi Slack #incident-p1, email incident@company.internal, và kích hoạt PagerDuty cho on-call; nếu không phản hồi trong 10 phút thì escalate lên Senior Engineer. (2) Level 2 emergency access: có emergency bypass, được cấp tạm thời khi có approval đồng thời của Line Manager và IT Admin on-call; không cần IT Security trong nhánh emergency Level 2. [sla_p1_2026.txt] [access_control_sop.txt]",
+  "sources": [
+    "access_control_sop.txt",
+    "it_helpdesk_faq.txt",
+    "sla_p1_2026.txt"
+  ],
+  "confidence": 0.84,
+  "history": [
+    "[supervisor] received task: Contractor cần Admin Access (Level 3) để khắc phục sự cố P1 đang active. Quy trì",
+    "[supervisor] route=policy_tool_worker reason=policy/access signal detected: cấp quyền, access, level 3 → route policy_tool_worker (prefer MCP) | choose MCP=yes",
+    "[retrieval_worker] retrieved 5 chunks from ['access_control_sop.txt', 'it_helpdesk_faq.txt', 'sla_p1_2026.txt']",
+    "[policy_tool_worker] called MCP check_access_permission(level=3, emergency=True)",
+    "[policy_tool_worker] called MCP get_ticket_info",
+    "[policy_tool_worker] policy_applies=True, exceptions=0",
+    "[synthesis_worker] answer generated, confidence=0.84, sources=['access_control_sop.txt', 'it_helpdesk_faq.txt', 'sla_p1_2026.txt']",
+    "[graph] completed in 5477ms via langgraph"
+  ],
+  "workers_called": [
+    "retrieval_worker",
+    "policy_tool_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "policy_tool_worker",
+  "latency_ms": 5477,
+  "run_id": "run_20260414_171939",
+  "question_id": "q13"
+}

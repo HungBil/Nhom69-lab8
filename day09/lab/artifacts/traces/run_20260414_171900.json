@@ -1,0 +1,65 @@
+{
+  "task": "Ticket P1 không được phản hồi sau 10 phút. Hệ thống tự động làm gì?",
+  "route_reason": "SLA/ticket retrieval signal detected: p1, ticket → route retrieval_worker | choose MCP=no",
+  "risk_high": false,
+  "needs_tool": false,
+  "hitl_triggered": false,
+  "retrieved_chunks": [
+    {
+      "text": "(Nghiêm trọng): Định nghĩa: Sự cố ảnh hưởng một phần hệ thống, có workaround tạm thời. Ví dụ: Một số tính năng không hoạt động, ảnh hưởng một nhóm người dùng. P3 — MEDIUM (Trung bình): Định nghĩa: Lỗi ảnh hưởng không đáng kể, người dùng vẫn làm việc được. P4 — LOW (Thấp): Định nghĩa: Yêu cầu cải tiến, gợi ý, hoặc lỗi giao diện nhỏ. === Phần 2: SLA theo mức độ ưu tiên === Ticket P1: - Phản hồi ban đầu (first response)",
+      "source": "sla_p1_2026.txt",
+      "score": 0.99,
+      "metadata": {
+        "source": "sla_p1_2026.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": " Section 4: Escalation khi cần thay đổi quyền hệ thống === Escalation chỉ áp dụng khi cần thay đổi quyền hệ thống ngoài quy trình thông thường. Ví dụ: Khẩn cấp trong sự cố P1, cần cấp quyền tạm thời để fix incident. Quy trình escalation khẩn cấp: 1. On-call IT Admin có thể cấp quyền tạm thời (max 24 giờ) sau khi được Tech Lead phê duyệt bằng lời. 2. Sau 24 giờ, phải có ticket chính thức hoặc quyền bị thu hồi tự động.",
+      "source": "access_control_sop.txt",
+      "score": 0.6,
+      "metadata": {
+        "source": "access_control_sop.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": "IT HELPDESK FAQ — CÂU HỎI THƯỜNG GẶP Source: support/helpdesk-faq.md Department: IT Effective Date: 2026-01-20 Access: internal === Section 1: Tài khoản và mật khẩu === Q: Tôi quên mật khẩu, phải làm gì? A: Truy cập https://sso.company.internal/reset hoặc liên hệ Helpdesk qua ext. 9000. Mật khẩu mới sẽ được gửi qua email công ty trong vòng 5 phút. Q: Tài khoản bị khóa sau bao nhiêu lần đăng nhập sai? A: Tài khoản bị ",
+      "source": "it_helpdesk_faq.txt",
+      "score": 0.4,
+      "metadata": {
+        "source": "it_helpdesk_faq.txt",
+        "method": "lexical_fallback"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "access_control_sop.txt",
+    "it_helpdesk_faq.txt",
+    "sla_p1_2026.txt"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "Hệ thống sẽ tự động escalate ticket lên Senior Engineer nếu on-call engineer không phản hồi sau 10 phút. [sla_p1_2026.txt]",
+  "sources": [
+    "access_control_sop.txt",
+    "it_helpdesk_faq.txt",
+    "sla_p1_2026.txt"
+  ],
+  "confidence": 0.66,
+  "history": [
+    "[supervisor] received task: Ticket P1 không được phản hồi sau 10 phút. Hệ thống tự động làm gì?",
+    "[supervisor] route=retrieval_worker reason=SLA/ticket retrieval signal detected: p1, ticket → route retrieval_worker | choose MCP=no",
+    "[retrieval_worker] retrieved 3 chunks from ['access_control_sop.txt', 'it_helpdesk_faq.txt', 'sla_p1_2026.txt']",
+    "[synthesis_worker] answer generated, confidence=0.66, sources=['access_control_sop.txt', 'it_helpdesk_faq.txt', 'sla_p1_2026.txt']",
+    "[graph] completed in 5527ms via langgraph"
+  ],
+  "workers_called": [
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 5527,
+  "run_id": "run_20260414_171900",
+  "question_id": "q06"
+}

@@ -1,0 +1,67 @@
+{
+  "task": "ERR-403-AUTH là lỗi gì và cách xử lý?",
+  "route_reason": "unknown error code without policy/SLA context → human review | choose MCP=no | human approved → retrieval",
+  "risk_high": true,
+  "needs_tool": false,
+  "hitl_triggered": true,
+  "retrieved_chunks": [
+    {
+      "text": ". Áp dụng cho tất cả nhân viên, contractor, và third-party vendor. === Section 2: Phân cấp quyền truy cập === Level 1 — Read Only: Áp dụng cho: Tất cả nhân viên mới trong 30 ngày đầu. Phê duyệt: Line Manager. Thời gian xử lý: 1 ngày làm việc. Level 2 — Standard Access: Áp dụng cho: Nhân viên chính thức đã qua thử việc. Phê duyệt: Line Manager + IT Admin. Thời gian xử lý: 2 ngày làm việc. Level 3 — Elevated Access: Áp",
+      "source": "access_control_sop.txt",
+      "score": 0.4,
+      "metadata": {
+        "source": "access_control_sop.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": "g ty dùng? A: Công ty sử dụng Cisco AnyConnect. Download tại https://vpn.company.internal/download. Q: Tôi bị mất kết nối VPN liên tục, phải làm gì? A: Kiểm tra kết nối Internet trước. Nếu vẫn lỗi, tạo ticket P3 với log file VPN đính kèm. Q: VPN có giới hạn số thiết bị không? A: Mỗi tài khoản được kết nối VPN trên tối đa 2 thiết bị cùng lúc. === Section 3: Phần mềm và license === Q: Tôi cần cài phần mềm mới, phải làm",
+      "source": "it_helpdesk_faq.txt",
+      "score": 0.4,
+      "metadata": {
+        "source": "it_helpdesk_faq.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": " tiền === Bước 1: Khách hàng gửi yêu cầu qua hệ thống ticket nội bộ với category \"Refund Request\". Bước 2: CS Agent xem xét trong vòng 1 ngày làm việc và xác nhận điều kiện đủ điều kiện. Bước 3: Nếu đủ điều kiện, chuyển yêu cầu sang Finance Team để xử lý hoàn tiền. Bước 4: Finance Team xử lý trong 3-5 ngày làm việc và thông báo kết quả cho khách hàng. === Điều 5: Hình thức hoàn tiền === - Hoàn tiền qua phương thức th",
+      "source": "policy_refund_v4.txt",
+      "score": 0.4,
+      "metadata": {
+        "source": "policy_refund_v4.txt",
+        "method": "lexical_fallback"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "access_control_sop.txt",
+    "it_helpdesk_faq.txt",
+    "policy_refund_v4.txt"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "Không đủ thông tin trong tài liệu nội bộ về mã lỗi ERR-403-AUTH. Vui lòng liên hệ IT Helpdesk để kiểm tra thêm.",
+  "sources": [
+    "access_control_sop.txt",
+    "it_helpdesk_faq.txt",
+    "policy_refund_v4.txt"
+  ],
+  "confidence": 0.3,
+  "history": [
+    "[supervisor] received task: ERR-403-AUTH là lỗi gì và cách xử lý?",
+    "[supervisor] route=human_review reason=unknown error code without policy/SLA context → human review | choose MCP=no",
+    "[human_review] HITL triggered — awaiting human input",
+    "[retrieval_worker] retrieved 3 chunks from ['access_control_sop.txt', 'it_helpdesk_faq.txt', 'policy_refund_v4.txt']",
+    "[synthesis_worker] answer generated, confidence=0.3, sources=['access_control_sop.txt', 'it_helpdesk_faq.txt', 'policy_refund_v4.txt']",
+    "[graph] completed in 5540ms via langgraph"
+  ],
+  "workers_called": [
+    "human_review",
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 5540,
+  "run_id": "run_20260414_171917",
+  "question_id": "q09"
+}

@@ -1,0 +1,65 @@
+{
+  "task": "Ticket P1 được tạo lúc 22:47. Ai sẽ nhận thông báo đầu tiên và qua kênh nào? Escalation xảy ra lúc mấy giờ?",
+  "route_reason": "SLA/ticket retrieval signal detected: p1, escalation, ticket → route retrieval_worker | choose MCP=no",
+  "risk_high": false,
+  "needs_tool": false,
+  "hitl_triggered": false,
+  "retrieved_chunks": [
+    {
+      "text": "ộ ưu tiên === Ticket P1: - Phản hồi ban đầu (first response): 15 phút kể từ khi ticket được tạo. - Xử lý và khắc phục (resolution): 4 giờ. - Escalation: Tự động escalate lên Senior Engineer nếu không có phản hồi trong 10 phút. - Thông báo stakeholder: Ngay khi nhận ticket, update mỗi 30 phút cho đến khi resolve. Ticket P2: - Phản hồi ban đầu: 2 giờ. - Xử lý và khắc phục: 1 ngày làm việc. - Escalation: Tự động escalat",
+      "source": "sla_p1_2026.txt",
+      "score": 0.9717,
+      "metadata": {
+        "source": "sla_p1_2026.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": "policy. === Section 3: Quy trình yêu cầu cấp quyền === Bước 1: Nhân viên tạo Access Request ticket trên Jira (project IT-ACCESS). Bước 2: Line Manager phê duyệt yêu cầu trong 1 ngày làm việc. Bước 3: IT Admin kiểm tra compliance và cấp quyền. Bước 4: IT Security review với Level 3 và Level 4. Bước 5: Nhân viên nhận thông báo qua email khi quyền được cấp. === Section 4: Escalation khi cần thay đổi quyền hệ thống === E",
+      "source": "access_control_sop.txt",
+      "score": 0.4783,
+      "metadata": {
+        "source": "access_control_sop.txt",
+        "method": "lexical_fallback"
+      }
+    },
+    {
+      "text": "ược cấp sau bao lâu khi vào công ty? A: Laptop được cấp trong ngày onboarding đầu tiên. Nếu có vấn đề, liên hệ HR hoặc IT Admin. Q: Laptop bị hỏng phải báo cáo như thế nào? A: Tạo ticket P2 hoặc P3 tùy mức độ nghiêm trọng. Mang thiết bị đến IT Room (tầng 3) để kiểm tra. === Section 5: Email và lịch === Q: Hộp thư đến đầy, phải làm gì? A: Xóa email cũ hoặc yêu cầu tăng dung lượng qua ticket IT-ACCESS. Dung lượng tiêu ",
+      "source": "it_helpdesk_faq.txt",
+      "score": 0.4783,
+      "metadata": {
+        "source": "it_helpdesk_faq.txt",
+        "method": "lexical_fallback"
+      }
+    }
+  ],
+  "retrieved_sources": [
+    "access_control_sop.txt",
+    "it_helpdesk_faq.txt",
+    "sla_p1_2026.txt"
+  ],
+  "policy_result": {},
+  "mcp_tools_used": [],
+  "final_answer": "Ngay khi nhận ticket P1, hệ thống thông báo qua 3 kênh: Slack #incident-p1, email incident@company.internal, và PagerDuty (on-call). Nếu on-call không phản hồi trong 10 phút, tự động escalate lên Senior Engineer. Deadline escalation là 22:57. [sla_p1_2026.txt]",
+  "sources": [
+    "access_control_sop.txt",
+    "it_helpdesk_faq.txt",
+    "sla_p1_2026.txt"
+  ],
+  "confidence": 0.64,
+  "history": [
+    "[supervisor] received task: Ticket P1 được tạo lúc 22:47. Ai sẽ nhận thông báo đầu tiên và qua kênh nào? Esc",
+    "[supervisor] route=retrieval_worker reason=SLA/ticket retrieval signal detected: p1, escalation, ticket → route retrieval_worker | choose MCP=no",
+    "[retrieval_worker] retrieved 3 chunks from ['access_control_sop.txt', 'it_helpdesk_faq.txt', 'sla_p1_2026.txt']",
+    "[synthesis_worker] answer generated, confidence=0.64, sources=['access_control_sop.txt', 'it_helpdesk_faq.txt', 'sla_p1_2026.txt']",
+    "[graph] completed in 5411ms via langgraph"
+  ],
+  "workers_called": [
+    "retrieval_worker",
+    "synthesis_worker"
+  ],
+  "supervisor_route": "retrieval_worker",
+  "latency_ms": 5411,
+  "run_id": "run_20260414_171928",
+  "question_id": "q11"
+}
