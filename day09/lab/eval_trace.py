@@ -18,6 +18,7 @@ import json
 import os
 import sys
 import argparse
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -262,6 +263,20 @@ def compare_single_vs_multi(
     if day08_results_file and os.path.exists(day08_results_file):
         with open(day08_results_file) as f:
             day08_baseline = json.load(f)
+    else:
+        scorecard_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "day08", "lab", "results", "scorecard_baseline.md")
+        )
+        if os.path.exists(scorecard_path):
+            parsed = _parse_day08_scorecard(scorecard_path)
+            day08_baseline.update(parsed)
+
+    multi_conf = float(multi_metrics.get("avg_confidence", 0) or 0)
+    multi_lat = int(multi_metrics.get("avg_latency_ms", 0) or 0)
+    base_conf = float(day08_baseline.get("avg_confidence", 0) or 0)
+    base_lat = int(day08_baseline.get("avg_latency_ms", 0) or 0)
+    latency_delta = multi_lat - base_lat if base_lat else None
+    confidence_delta = round(multi_conf - base_conf, 3) if base_conf else None
 
     comparison = {
         "generated_at": datetime.now().isoformat(),
@@ -269,14 +284,37 @@ def compare_single_vs_multi(
         "day09_multi_agent": multi_metrics,
         "analysis": {
             "routing_visibility": "Day 09 có route_reason cho từng câu → dễ debug hơn Day 08",
-            "latency_delta": "TODO: Điền delta latency thực tế",
-            "accuracy_delta": "TODO: Điền delta accuracy thực tế từ grading",
+            "latency_delta": (
+                f"{latency_delta:+d} ms (Day09 - Day08)"
+                if latency_delta is not None else "N/A (chưa có Day 08 latency)"
+            ),
+            "accuracy_delta": (
+                f"{confidence_delta:+.3f} avg_confidence (proxy)"
+                if confidence_delta is not None else "N/A (chưa có Day 08 confidence)"
+            ),
             "debuggability": "Multi-agent: có thể test từng worker độc lập. Single-agent: không thể.",
             "mcp_benefit": "Day 09 có thể extend capability qua MCP không cần sửa core. Day 08 phải hard-code.",
         },
     }
 
     return comparison
+
+
+def _parse_day08_scorecard(scorecard_path: str) -> dict:
+    """Đọc scorecard markdown Day 08 và trích các chỉ số trung bình."""
+    text = open(scorecard_path, encoding="utf-8").read()
+
+    def _extract(metric: str) -> float:
+        m = re.search(rf"\|\s*{re.escape(metric)}\s*\|\s*([0-9.]+)/5\s*\|", text)
+        return float(m.group(1)) / 5 if m else 0.0
+
+    return {
+        "total_questions": 10,
+        "avg_confidence": round(_extract("Faithfulness"), 3),
+        "avg_latency_ms": 0,  # Day 08 scorecard không lưu latency
+        "abstain_rate": "N/A",
+        "multi_hop_accuracy": "N/A",
+    }
 
 
 # ─────────────────────────────────────────────
