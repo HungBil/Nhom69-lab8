@@ -15,24 +15,64 @@ Output (vào AgentState):
 Gọi độc lập để test:
     python workers/policy_tool.py
 """
-
-try:
-    from .mcp_client import call_mcp_tool
-except ImportError:
-    from workers.mcp_client import call_mcp_tool
+import os
 
 WORKER_NAME = "policy_tool_worker"
 
 
 # ─────────────────────────────────────────────
-# MCP Client
+# MCP Client — Sprint 3: Thay bằng real MCP call
 # ─────────────────────────────────────────────
 
 def _call_mcp_tool(tool_name: str, tool_input: dict) -> dict:
     """
-    Gọi MCP tool qua shared MCP client adapter.
+    Gọi MCP tool.
+
+    Sprint 3 TODO: Implement bằng cách import mcp_server hoặc gọi HTTP.
+
+    Hiện tại: Import trực tiếp từ mcp_server.py (trong-process mock).
     """
-    return call_mcp_tool(tool_name, tool_input)
+    from datetime import datetime
+
+    try:
+        # Prefer real MCP server qua HTTP nếu có cấu hình URL.
+        server_url = os.getenv("MCP_SERVER_URL", "").strip()
+        if server_url:
+            import httpx
+            endpoint = f"{server_url.rstrip('/')}/mcp/tools/call"
+            payload = {"tool": tool_name, "input": tool_input}
+            resp = httpx.post(endpoint, json=payload, timeout=20.0)
+            resp.raise_for_status()
+            body = resp.json()
+            result = body.get("output", {})
+            return {
+                "tool": tool_name,
+                "input": tool_input,
+                "output": result,
+                "error": None,
+                "transport": "http",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        # Local MCP mock path (in-process)
+        # from mcp_server import dispatch_tool
+        # result = dispatch_tool(tool_name, tool_input)
+        # return {
+        #     "tool": tool_name,
+        #     "input": tool_input,
+        #     "output": result,
+        #     "error": None,
+        #     "transport": "local",
+        #     "timestamp": datetime.now().isoformat(),
+        # }
+    except Exception as e:
+        return {
+            "tool": tool_name,
+            "input": tool_input,
+            "output": None,
+            "error": {"code": "MCP_CALL_FAILED", "reason": str(e)},
+            "timestamp": datetime.now().isoformat(),
+        }
 
 
 # ─────────────────────────────────────────────
@@ -60,8 +100,13 @@ def analyze_policy(task: str, chunks: list) -> dict:
     # --- Rule-based exception detection ---
     exceptions_found = []
 
-    # Exception 1: Flash Sale
-    if "flash sale" in task_lower or "flash sale" in context_text:
+    # Exception 1: Flash Sale (tránh false positive khi câu có phủ định)
+    flash_sale_positive = ("flash sale" in task_lower or "flash sale" in context_text)
+    flash_sale_negated = any(
+        kw in task_lower
+        for kw in ["không phải flash sale", "not flash sale", "khong phai flash sale"]
+    )
+    if flash_sale_positive and not flash_sale_negated:
         exceptions_found.append({
             "type": "flash_sale_exception",
             "rule": "Đơn hàng Flash Sale không được hoàn tiền (Điều 3, chính sách v4).",
@@ -165,11 +210,34 @@ def run(state: dict) -> dict:
                 chunks = mcp_result["output"]["chunks"]
                 state["retrieved_chunks"] = chunks
 
-        # Step 2: Phân tích policy
+        # Step 2: Với access-control tasks, gọi MCP check_access_permission
+        task_lower = task.lower()
+        if needs_tool and any(kw in task_lower for kw in ["access", "cấp quyền", "level 2", "level 3"]):
+            level = 3 if "level 3" in task_lower else (2 if "level 2" in task_lower else 1)
+            is_emergency = any(kw in task_lower for kw in ["emergency", "khẩn cấp", "p1", "urgent"])
+            role = "contractor" if "contractor" in task_lower else "employee"
+            perm_result = _call_mcp_tool(
+                "check_access_permission",
+                {
+                    "access_level": level,
+                    "requester_role": role,
+                    "is_emergency": is_emergency,
+                },
+            )
+            state["mcp_tools_used"].append(perm_result)
+            state["history"].append(
+                f"[{WORKER_NAME}] called MCP check_access_permission(level={level}, emergency={is_emergency})"
+            )
+
+        # Step 3: Phân tích policy
         policy_result = analyze_policy(task, chunks)
+        # Đính kèm MCP result liên quan access nếu có để synthesis tận dụng
+        access_checks = [c for c in state["mcp_tools_used"] if c.get("tool") == "check_access_permission"]
+        if access_checks and access_checks[-1].get("output"):
+            policy_result["access_check"] = access_checks[-1]["output"]
         state["policy_result"] = policy_result
 
-        # Step 3: Nếu cần thêm info từ MCP (e.g., ticket status), gọi get_ticket_info
+        # Step 4: Nếu cần thêm info từ MCP (e.g., ticket status), gọi get_ticket_info
         if needs_tool and any(kw in task.lower() for kw in ["ticket", "p1", "jira"]):
             mcp_result = _call_mcp_tool("get_ticket_info", {"ticket_id": "P1-LATEST"})
             state["mcp_tools_used"].append(mcp_result)
