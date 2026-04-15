@@ -14,6 +14,8 @@ Trong Lab Day 10, tôi phụ trách phần Embed & Eval, đồng thời là ngư
 
 Ở phần embed, tôi theo dõi collection ChromaDB `day10_kb` và dùng các run như `final-clean`, `final-inject-bad`, `final-clean-after-fix` để chứng minh cùng một pipeline có thể đưa index từ trạng thái an toàn sang trạng thái rủi ro, rồi phục hồi lại. Ở phần eval, tôi sử dụng bộ câu hỏi retrieval có sẵn để kiểm tra không chỉ câu trả lời mong đợi mà cả tín hiệu stale context thông qua cột `hits_forbidden`. Đây là phần quan trọng nhất của Sprint 3 vì bài lab yêu cầu phải chứng minh được dữ liệu xấu làm retrieval tệ đi như thế nào.
 
+**Bằng chứng:** `etl_pipeline.py`, `eval_retrieval.py`, `docs/quality_report.md`, `artifacts/eval/final_clean.csv`, `artifacts/eval/final_inject_bad.csv`, `artifacts/eval/final_after_fix.csv`.
+
 ---
 
 ## 2. Một quyết định kỹ thuật
@@ -21,6 +23,8 @@ Trong Lab Day 10, tôi phụ trách phần Embed & Eval, đồng thời là ngư
 Quyết định kỹ thuật quan trọng nhất của tôi là coi ChromaDB như “snapshot publish boundary”, chứ không chỉ là nơi tạm chứa embedding. Điều đó có nghĩa là evidence quality phải được đo trên collection thực đang serve retrieval, không được chỉ nhìn cleaned CSV rồi kết luận. Vì lý do đó, tôi bám sát cách pipeline đang làm trong `etl_pipeline.py`: upsert theo `chunk_id` và prune các id không còn trong cleaned output.
 
 Cách tiếp cận này giúp tránh một lỗi rất phổ biến trong hệ thống AI: file CSV đã sạch nhưng vector store vẫn còn dữ liệu cũ. Nếu chỉ kiểm tra cleaned CSV thì nhóm có thể tưởng pipeline đã đúng, trong khi top-k retrieval vẫn bị nhiễm chunk stale từ các run trước. Việc gắn Sprint 3 vào ChromaDB khiến phần before/after có giá trị thật: khi dữ liệu xấu đi vào publish boundary thì eval mới nhìn thấy được `hits_forbidden=yes`, và khi dữ liệu sạch được publish lại thì chỉ số này mới về `no`.
+
+Tôi ủng hộ prune vector id không còn trong batch để tránh top-k còn chunk “14 ngày” sau inject.
 
 ---
 
@@ -62,4 +66,4 @@ Ngoài ra, tôi cũng dùng `q_leave_version` như một evidence bổ sung: ở
 
 ## 5. Cải tiến tiếp theo
 
-Nếu có thêm 2 giờ, tôi sẽ bổ sung một run grading hoàn chỉnh bằng `grading_run.py` và mở rộng eval từ bộ retrieval keyword-based sang một bộ slice lớn hơn để tăng sức thuyết phục. Hiện repo chưa có `data/grading_questions.json`, nên phần grading cuối cùng chưa chạy được. Ngoài ra, tôi cũng muốn thêm một collection alias hoặc cơ chế publish tách biệt giữa “candidate index” và “serving index” để mô phỏng rõ hơn mô hình blue/green publish cho vector store.
+Nếu có thêm 2 giờ, tôi sẽ mở rộng eval từ bộ retrieval keyword-based sang một bộ slice lớn hơn để tăng sức thuyết phục. Hiện đã có `grading_questions.json` và `grading_run.jsonl`; bước tiếp theo hợp lý là bổ sung publish alias hoặc cơ chế blue/green index để tách rõ giữa “candidate index” và “serving index”, giúp giảm rủi ro khi rerun hoặc backfill trên vector store.
