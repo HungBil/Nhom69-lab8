@@ -112,5 +112,57 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
         )
     )
 
+    # Sprint 2 — expectation mới bám theo contract `quality_rules`.
+
+    # E7: contract `no_placeholders` — halt nếu còn marker [TODO]/[TBD]/[PLACEHOLDER].
+    placeholder_hits = [
+        r
+        for r in cleaned_rows
+        if any(
+            m in (r.get("chunk_text") or "").upper()
+            for m in ("[TODO]", "[TBD]", "[PLACEHOLDER]")
+        )
+    ]
+    ok7 = len(placeholder_hits) == 0
+    results.append(
+        ExpectationResult(
+            "no_placeholder_markers",
+            ok7,
+            "halt",
+            f"placeholder_rows={len(placeholder_hits)}",
+        )
+    )
+
+    # E8: contract `no_long_chunks` (<=1000 ký tự) — warn để giám sát.
+    long_rows = [r for r in cleaned_rows if len((r.get("chunk_text") or "")) > 1000]
+    ok8 = len(long_rows) == 0
+    results.append(
+        ExpectationResult(
+            "chunk_max_length_1000",
+            ok8,
+            "warn",
+            f"long_chunks={len(long_rows)}",
+        )
+    )
+
+    # E9: schema contract — `exported_at` bắt buộc, ISO datetime hợp lệ (halt).
+    iso_dt = re.compile(
+        r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$"
+    )
+    bad_exported = [
+        r
+        for r in cleaned_rows
+        if not iso_dt.match((r.get("exported_at") or "").strip())
+    ]
+    ok9 = len(bad_exported) == 0
+    results.append(
+        ExpectationResult(
+            "exported_at_iso_required",
+            ok9,
+            "halt",
+            f"bad_exported_at={len(bad_exported)}",
+        )
+    )
+
     halt = any(not r.passed and r.severity == "halt" for r in results)
     return results, halt
