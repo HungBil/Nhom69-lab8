@@ -112,5 +112,33 @@ def run_expectations(cleaned_rows: List[Dict[str, Any]]) -> Tuple[List[Expectati
         )
     )
 
+    # E7: không chứa placeholder [TODO], [TBD] (New Expectation)
+    placeholders = [
+        r
+        for r in cleaned_rows
+        if any(m in (r.get("chunk_text") or "").upper() for m in ["[TODO]", "[TBD]", "PLACEHOLDER"])
+    ]
+    ok7 = len(placeholders) == 0
+    results.append(
+        ExpectationResult(
+            "no_placeholders",
+            ok7,
+            "halt",
+            f"placeholder_violations={len(placeholders)}",
+        )
+    )
+
+    # E8: cảnh báo nếu chunk quá dài > 1000 ký tự (New Expectation)
+    long_chunks = [r for r in cleaned_rows if len((r.get("chunk_text") or "")) > 1000]
+    ok8 = len(long_chunks) == 0
+    results.append(
+        ExpectationResult(
+            "chunk_max_length_1000",
+            ok8,
+            "warn",
+            f"long_chunks={len(long_chunks)}",
+        )
+    )
+
     halt = any(not r.passed and r.severity == "halt" for r in results)
     return results, halt
