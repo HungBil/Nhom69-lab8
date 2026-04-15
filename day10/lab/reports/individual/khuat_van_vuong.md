@@ -7,7 +7,7 @@
 
 ---
 
-## 1. Tôi phụ trách phần nào?
+## 1. Phụ trách
 
 Tôi phụ trách vai trò Ingestion Owner, tập trung vào luồng đọc dữ liệu raw, chuẩn hóa điểm vào pipeline và ghi vết observability theo run. Tôi làm việc chủ yếu trong `etl_pipeline.py`, ở các bước: nhận `--run-id`, đọc `data/raw/policy_export_dirty.csv`, đếm `raw_records`, tạo artifact theo run, và ghi log key-value để nhóm dễ đối soát. Kết quả run đầu tiên là `run_id=sprint1`, `raw_records=10`, `cleaned_records=6`, `quarantine_records=4` (trong `artifacts/logs/run_sprint1.log`). Tôi cũng xuất manifest cho monitoring và freshness; `artifacts/manifests/manifest_sprint1.json` chứa `raw_path`, `latest_exported_at`, `no_refund_fix`, `skipped_validate`, `chroma_collection`.
 
@@ -15,7 +15,7 @@ Về phối hợp, tôi bàn giao dữ liệu đã ingest cho bạn Cleaning và
 
 ---
 
-## 2. Một quyết định kỹ thuật
+## 2. Quyết định kỹ thuật
 
 Quyết định kỹ thuật quan trọng nhất của tôi là chọn cơ chế định danh run theo `run_id` và chuẩn hóa đường dẫn artifact theo run, thay vì ghi đè một file log duy nhất. Cụ thể, trong `cmd_run()` của `etl_pipeline.py`, khi người dùng không truyền `--run-id` thì hệ thống tự sinh timestamp UTC (`%Y-%m-%dT%H-%MZ`), còn khi truyền thủ công (ví dụ `sprint1`, `inject-bad`, `clean-good`) thì pipeline giữ nguyên để hỗ trợ so sánh scenario. Cách này giúp truy xuất lineage rõ ràng: một run tương ứng một cặp log/manifest/quarantine/cleaned.
 
@@ -23,7 +23,7 @@ Lý do tôi chọn thiết kế này là để giảm tranh cãi khi debug: mọ
 
 ---
 
-## 3. Một lỗi hoặc anomaly đã xử lý
+## 3. Sự cố / anomaly
 
 Anomaly tôi xử lý trong sprint này là tình huống “expectation đã FAIL nhưng pipeline vẫn cần chạy để demo inject corruption có chủ đích”. Ở run `inject-bad`, log ghi rõ `expectation[refund_no_stale_14d_window] FAIL (halt) :: violations=1`. Nếu chạy mặc định, pipeline sẽ dừng và không tạo được bằng chứng cho bài so sánh trước/sau.
 
@@ -31,7 +31,7 @@ Cách xử lý của tôi là dùng đúng cơ chế điều khiển đã có tr
 
 ---
 
-## 4. Bằng chứng trước / sau
+## 4. Before/after
 
 - Trước khi fix (inject): `artifacts/eval/after_inject_bad.csv` có dòng `q_refund_window` với `contains_expected=yes` nhưng `hits_forbidden=yes`.
 - Sau khi fix (clean): `artifacts/eval/before_after_eval.csv` cùng câu `q_refund_window` có `contains_expected=yes` và `hits_forbidden=no`.
@@ -40,6 +40,6 @@ Hai dòng này cho thấy dù top-1 vẫn trả lời đúng “7 ngày”, ở 
 
 ---
 
-## 5. Cải tiến tiếp theo
+## 5. Cải tiến thêm 2 giờ
 
 Nếu có thêm 2 giờ, tôi sẽ thêm một lớp “ingestion guardrail” kiểm tra schema và kiểu dữ liệu ngay sau bước đọc CSV (ví dụ bắt buộc các cột `doc_id`, `chunk_id`, `effective_date`, `exported_at` tồn tại), rồi ghi riêng metric `schema_error_count` vào log/manifest. Việc này giúp phát hiện sớm lỗi input trước khi tốn thời gian chạy cleaning và embed.
