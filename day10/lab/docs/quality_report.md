@@ -98,7 +98,7 @@ Ghi chú vận hành:
 
 ## 5. Hạn chế & việc chưa làm
 
-- Chưa chạy `grading_run.py` vì repo hiện chưa có `data/grading_questions.json`.
+- Hiện đã có `grading_questions.json` và `grading_run.jsonl`; phần tiếp theo nên mở rộng grading beyond keyword-based hoặc thêm bộ slice lớn hơn để tăng độ tin cậy của eval.
 - Chưa mở rộng eval beyond baseline; hiện mới dùng bộ retrieval keyword-based có sẵn.
 - Chưa có đo freshness ở 2 boundary (`ingest` + `publish`), nên chưa chạm bonus đó.
 - Cần cập nhật `reports/group_report.md` để copy các số liệu run_id, log excerpt, và before/after CSV vào báo cáo nộp cuối.
